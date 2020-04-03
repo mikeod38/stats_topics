@@ -62,7 +62,7 @@ lm.anova <- Tstar %>% lm(data = ., `T*` ~ genotype)
 lm.anova %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
 
-lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ genotype + (1|group)) 
+lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ 0 + genotype + (1|group)) 
 lm.group %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
   
