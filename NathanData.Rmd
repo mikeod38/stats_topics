@@ -1,0 +1,84 @@
+---
+title: "Data independence"
+author: "Mike O'Donnell"
+date: "4/3/2020"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
+fig_width: 6 
+fig_height: 4
+---
+
+<!-- output: -->
+<!--   html_document: -->
+<!--     keep_md: true -->
+<!--     df_print: paged -->
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+library(tidyverse)
+library(magrittr)
+ggplot2::theme_set(theme_classic())
+```
+
+
+<details><summary>CODE</summary>
+<p>
+
+# Analysis of Nathan's grouped data:
+
+```{r, message = FALSE, warning = FALSE}
+
+#read csv file in:
+Tstar <- readr::read_csv("data/WTvsNHR52_Tstar.csv") %>% mutate(group = interaction(genotype, video)) 
+Tstar %>%
+  ggplot(aes(x = genotype, y = `T*`)) + geom_point(aes(colour = group))
+
+
+Tstar %>% lm(data = ., `T*` ~ group) %>% 
+  emmeans::emmeans("group") %>% 
+  emmeans::contrast(method = "pairwise")
+
+lm.anova <- Tstar %>% lm(data = ., 0 +`T*` ~ genotype) 
+lm.anova %>% emmeans::emmeans("genotype") %>% 
+  emmeans::contrast(method = "pairwise")
+
+lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ 0 + genotype + (1|group)) 
+lm.group %>% emmeans::emmeans("genotype") %>% 
+  emmeans::contrast(method = "pairwise")
+  
+predict.anova <- predict(lm.anova, 
+                         newdata = tibble(genotype = c("nhr-52", "WT")), 
+                         interval = "confidence")
+
+confint.group <- confint(lm.group, method = "boot")
+predict.group <- tibble(fit = predict(lm.group, 
+                         newdata = tibble(genotype = c("nhr-52", "WT")),
+                         re.form = NA))
+
+intervals <- tibble(
+  genotype = rep(c("nhr-52", "WT"), 2),
+  data_type = rep(c("anova", "mixed model"), each = 2),
+  `T*` = c(predict.anova[,'fit'], predict.group[[1]]),
+  lwr  = c(predict.anova[,'lwr'], confint.group[3:4,1]),
+  upr  = c(predict.anova[,'upr'], confint.group[3:4,2])
+)
+
+Tstar %>% mutate(data_type = "raw") %>%
+  ggplot(aes(x = data_type, y = `T*`)) +
+  geom_point(aes(colour = group)) +
+  geom_point(data = intervals) +
+  geom_errorbar(data = intervals, aes(ymin = lwr, ymax = upr), width = 0.2) +
+  facet_grid(~genotype)
+
+```
+
+
+
+</p>
+</details>
