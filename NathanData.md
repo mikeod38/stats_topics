@@ -5,6 +5,10 @@ Mike O’Donnell
 
   - [Analysis of Nathan’s grouped
     data:](#analysis-of-nathans-grouped-data)
+      - [First plotting and colour T\* values according to
+        group.](#first-plotting-and-colour-t-values-according-to-group.)
+      - [Running a simple ANOVA vs a mixed effects
+        model](#running-a-simple-anova-vs-a-mixed-effects-model)
 
 <!-- output: -->
 
@@ -16,11 +20,16 @@ Mike O’Donnell
 
 <details>
 
-<summary>CODE</summary>
+<summary>NathanData</summary>
 
 <p>
 
 # Analysis of Nathan’s grouped data:
+
+## First plotting and colour T\* values according to group.
+
+In this case the group is the slide/video in which the imaging data were
+acquired
 
 ``` r
 
@@ -32,9 +41,11 @@ Tstar %>%
 
 <img src="man/figures/README-unnamed-chunk-1-1.png" width="100%" />
 
+When we analyze the effect of the grouping variable, there is some
+evidence that the recording session might have an effect on the T\*
+value, see the `WT.Video 2 - WT.Video1` comparison.
+
 ``` r
-
-
 Tstar %>% lm(data = ., `T*` ~ group) %>% 
   emmeans::emmeans("group") %>% 
   emmeans::contrast(method = "pairwise")
@@ -47,7 +58,26 @@ Tstar %>% lm(data = ., `T*` ~ group) %>%
 #>  WT.Video1 - nhr-52.Video2      -0.4898 0.115 30 -4.250  0.0010 
 #> 
 #> P value adjustment: tukey method for comparing a family of 4 estimates
+```
 
+Don’t mistake this for a method to determine whether you should consider
+the grouping variable in your analysis - this is for a demonstration
+only. Even if there were no evidence of an effect of the grouping
+variable, as you’ll see below, it’s generally more conservative to
+consider the non-independence of the data.
+
+## Running a simple ANOVA vs a mixed effects model
+
+In the mixed-effects model, we add a term for grouping variable, in this
+case the video, which I’ve called `group`.
+
+You can see the parameter estimates are pretty similar, and p-values are
+quite low in both cases, but when we look at the confidence intervals in
+the bottom plot, you can see that accounting for grouping variable the
+confidence intervals are a bit wider - which we’d expect if the data
+weren’t truly independent.
+
+``` r
 lm.anova <- Tstar %>% lm(data = ., 0 +`T*` ~ genotype) 
 lm.anova %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
@@ -82,10 +112,11 @@ Tstar %>% mutate(data_type = "raw") %>%
   geom_point(aes(colour = group)) +
   geom_point(data = intervals) +
   geom_errorbar(data = intervals, aes(ymin = lwr, ymax = upr), width = 0.2) +
-  facet_grid(~genotype)
+  facet_grid(~genotype) +
+  labs(title = "linear vs mixed effects confidence intervals")
 ```
 
-<img src="man/figures/README-unnamed-chunk-1-2.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
 </p>
 
