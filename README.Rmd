@@ -11,3 +11,5 @@ output:
 # Stats topics for Sengupta lab tutorials
 
 This repository contains topics we'll cover centered on real-world applied statistics in lab. In depth topics will be in .md format to view on GitHub.
+
+## [Data independence](NathanData.md)
