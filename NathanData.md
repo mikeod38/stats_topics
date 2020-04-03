@@ -20,7 +20,7 @@ Mike O’Donnell
 
 <details>
 
-<summary>NathanData</summary>
+<summary>Nathan’s Calcium Data</summary>
 
 <p>
 
@@ -78,13 +78,13 @@ confidence intervals are a bit wider - which we’d expect if the data
 weren’t truly independent.
 
 ``` r
-lm.anova <- Tstar %>% lm(data = ., 0 +`T*` ~ genotype) 
+lm.anova <- Tstar %>% lm(data = ., `T*` ~ genotype) 
 lm.anova %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
 #>  contrast    estimate     SE df t.ratio p.value
 #>  nhr-52 - WT    0.651 0.0827 32 7.874   <.0001
 
-lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ 0 + genotype + (1|group)) 
+lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ genotype + (1|group)) 
 lm.group %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
 #>  contrast    estimate   SE  df z.ratio p.value
