@@ -1,0 +1,208 @@
+---
+title: "Data independence - Lauren"
+author: "Mike O'Donnell"
+date: "4/3/2020"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
+fig_width: 6 
+fig_height: 4
+---
+
+<!-- output: -->
+<!--   html_document: -->
+<!--     keep_md: true -->
+<!--     df_print: paged -->
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+library(tidyverse)
+library(magrittr)
+ggplot2::theme_set(theme_classic())
+```
+
+
+<details><summary>Lauren's synapse labeling</summary>
+<p>
+
+# Analysis of Lauren's grouped data:
+
+## Initial plots:
+
+First reading in the data and having a look at data types and columns
+```{r initial plot, message = FALSE, warning = FALSE}
+SSTRDrugs <- read_csv("data/merckTIME.csv") 
+glimpse(SSTRDrugs)
+```
+
+Let's grab the last 5 rows since it looks like those have all of the necessary information used for analysis. Let's make `Time` a numeric column in the process. Then plot the data without considering grouping.
+```{r, message = FALSE, warning = FALSE}
+SSTRDrugs %<>% select(NormAvgTOT, Dissociation, SLIDE, Time, Label) %>%
+  separate(Time, into = "Time", sep = "H") %>%
+  mutate(Time = as.numeric(Time))
+
+SSTRDrugs %>%
+  ggplot(aes(x = Time, y = NormAvgTOT)) +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label)) +
+  geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+  scale_colour_viridis_d(end = .9)
+      
+```
+
+Looks like the L_2 group goes down and MK_1 goes up. Now lets look at the experiments by dissociation. 
+
+```{r, message = FALSE, warning = FALSE}
+SSTRDrugs %>%
+  ggplot(aes(x = Time, y = NormAvgTOT)) +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label)) +
+  geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+  scale_colour_viridis_d(end = .9) +
+  facet_wrap(~Dissociation)
+```
+
+Looks complicated, let's look at the difference between `CTL` and each drug treatment at each time point by dissociation.
+
+</p>
+</details>
+
+## Grouped data visualization:
+
+```{r, message = FALSE, warning = FALSE}
+Summary_dissoc <- SSTRDrugs %>%
+  group_by(Dissociation, Time, Label) %>%
+  summarise(median = median(NormAvgTOT))
+
+Summary_dissoc %>% 
+  ggplot(aes(x = Time, y = median)) +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label), lty = 2, alpha = 0.25) +
+  geom_smooth(data = SSTRDrugs, method = "lm", 
+              aes(y = NormAvgTOT, group = Label, colour = Label), fill = "blue") +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+  geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  scale_colour_viridis_d(end = .9)
+```
+This time shoing the effect by `Dissociation`,  which has the same slopes, probably because the data are already normalized by `Dissociation`. The Standard error for the original data are in blue with solid lines, the new based on summaries by Dissociation are in grey with dashed lines. Standard errors are much wider because in this highly conservative way to look at the data, the n is much smaller. The real variability is probably somewhere in between these. So let's look by `slide` on which the cells were stained, which is another level of grouping. 
+
+```{r, message = FALSE, warning = FALSE}
+Summary_slide <- SSTRDrugs %>%
+  group_by(SLIDE, Time, Label) %>%
+  summarise(median = median(NormAvgTOT))
+
+Summary_slide %>% 
+  ggplot(aes(x = Time, y = median)) +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label), lty = 2, alpha = 0.25) +
+  geom_smooth(data = SSTRDrugs, method = "lm", 
+              aes(y = NormAvgTOT, group = Label, colour = Label), fill = "blue") +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+  geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  scale_colour_viridis_d(end = .9)
+```
+This is comforting because even when grouped by slide on which the cells were stained, we have the same overall trend. This likely is a bit closer to the effective n for the experiment, since cells on same `SLIDE` and `Dissocation` are not truly independent. The linear approximation does an okay job at capturing the time component. Let's compare the effects of modeling these grouping factors. 
+
+## Anova vs. Mixed-models:
+
+```{r,message = FALSE, warning = FALSE}
+#simple ANOVA
+lm.anova <- SSTRDrugs %>%
+  lm(data = ., formula = NormAvgTOT ~ Time * Label)
+
+lm.grouped <- SSTRDrugs %>%
+  lmerTest::lmer(data = ., formula = NormAvgTOT ~ Time *  Label + (1 | Dissociation) + (1 | SLIDE))
+
+lm.anova %>%
+  summary()
+
+lm.grouped %>%
+  summary()
+
+lm.anova %>%
+  #emmeans::emmeans("Label", by = "Time") %>%
+  emmeans::emmeans(pairwise ~ Label)
+
+lm.grouped %>%
+  #emmeans::emmeans("Label", by = "Time") %>%
+  emmeans::emmeans(pairwise ~ Label)
+```
+
+
+What if we consider all of the time points to be categorical? 
+
+```{r}
+############### for categorical 'Time' #######
+
+lm.anova.cat <- SSTRDrugs %>%
+  lm(data = ., formula = NormAvgTOT ~ factor(Time) * Label)
+
+anova.cat.emm <- lm.anova.cat %>%
+  emmeans::emmeans(pairwise ~ Label | factor(Time))
+
+anova.cat.emm$contrasts %>% rbind(adjust = "bonf")
+
+
+
+lm.grouped.cat <- SSTRDrugs %>%
+  lmerTest::lmer(data = ., formula = NormAvgTOT ~ factor(Time) * Label + (1 | Dissociation) + (1 | SLIDE))
+
+grouped.cat.emm <- lm.grouped.cat %>%
+  emmeans::emmeans(pairwise ~ Label | factor(Time))
+
+# these are approx p-values based
+grouped.cat.emm$contrasts %>% rbind(adjust = "bonf") %>% kableExtra::kable()
+
+```
+
+In reality the best approach to estimate uncertainty in mixed-effects models is using bootstapping.
+
+<details><summary>CODE</summary>
+<p>
+
+
+```{r, bootstrapping}
+mySumm <- function(.) {
+  predict(., newdata=expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24), re.form=NA)
+}
+
+PI.boot1.time <- system.time(
+  boot1 <- lme4::bootMer(lm.grouped, mySumm, nsim=250, use.u=FALSE, type="parametric")
+)
+
+####Collapse bootstrap into median, 95% PI (from https://cran.r-project.org/web/packages/merTools/vignettes/Using_predictInterval.html)
+sumBoot <- function(merBoot) {
+  return(
+    data.frame(fit = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.5, na.rm=TRUE))),lwr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.025, na.rm=TRUE))),upr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.975, na.rm=TRUE)))
+    )
+  )
+}
+
+
+PI.boot1 <- sumBoot(boot1)
+Boot.intervals <- cbind(PI.boot1, expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24))
+```
+
+
+```{r bootstrap plot}
+#compare bootstrap CIs to lm (anova) CIs
+SSTRDrugs %>%
+  ggplot(aes(x = Time, y = NormAvgTOT)) +
+  geom_ribbon(data = Boot.intervals, 
+              aes(y = fit, ymin = lwr, ymax = upr, group = Label), 
+              alpha = 0.2, label = "bootstrap intervals") +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label),fill = "blue", lty = 2) +
+  geom_line(data = Boot.intervals, aes(y = fit, group = Label, colour = Label)) +
+  # geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+
+  scale_colour_viridis_d(end = .9)
+```
+
+The mixed-model captures more of the uncertainty, but still shows we can be confident of an upward effect of the MK_1 treatment. Less convincing is the downward effect of L_2, with the caveat that this is modeled as a linear effect, which might not capture the time-dependent effects in culture. 
+
+</p>
+</details>

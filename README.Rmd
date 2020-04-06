@@ -12,4 +12,6 @@ output:
 
 This repository contains topics we'll cover centered on real-world applied statistics in lab. In depth topics will be in .md format to view on GitHub.
 
-## [Data independence](NathanData.md)
+## [Data independence - part1](NathanData.md)
+
+## [Data independence - part2](LaurenData.md)
