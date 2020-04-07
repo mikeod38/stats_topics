@@ -1,4 +1,4 @@
-Data independence
+Data independence - Nathan
 ================
 Mike O’Donnell
 4/3/2020
@@ -71,11 +71,12 @@ consider the non-independence of the data.
 In the mixed-effects model, we add a term for grouping variable, in this
 case the video, which I’ve called `group`.
 
-You can see the parameter estimates are pretty similar, and p-values are
-quite low in both cases, but when we look at the confidence intervals in
-the bottom plot, you can see that accounting for grouping variable the
-confidence intervals are a bit wider - which we’d expect if the data
-weren’t truly independent.
+You can see the parameter estimates are pretty similar, but when we look
+at the confidence intervals in the bottom plot, you can see that
+accounting for grouping variable the confidence intervals are a bit
+wider - which we’d expect if the data weren’t truly independent. In the
+presence of a grouping factor like this, it’s probably best to collect
+more groups.
 
 ``` r
 lm.anova <- Tstar %>% lm(data = ., `T*` ~ genotype) 
@@ -87,8 +88,8 @@ lm.anova %>% emmeans::emmeans("genotype") %>%
 lm.group <- Tstar %>% lme4::lmer(data = ., `T*` ~ 0 + genotype + (1|group)) 
 lm.group %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")
-#>  contrast    estimate   SE  df z.ratio p.value
-#>  nhr-52 - WT    0.632 0.15 Inf 4.224   <.0001
+#>  contrast    estimate   SE   df t.ratio p.value
+#>  nhr-52 - WT    0.632 0.15 1.98 4.224   0.0529
   
 predict.anova <- predict(lm.anova, 
                          newdata = tibble(genotype = c("nhr-52", "WT")), 

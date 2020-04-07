@@ -55,7 +55,7 @@ Don't mistake this for a method to determine whether you should consider the gro
 ## Running a simple ANOVA vs a mixed effects model
 In the mixed-effects model, we add a term for grouping variable, in this case the video, which I've called `group`. 
 
-You can see the parameter estimates are pretty similar, and p-values are quite low in both cases, but when we look at the confidence intervals in the bottom plot, you can see that accounting for grouping variable the confidence intervals are a bit wider - which we'd expect if the data weren't truly independent. 
+You can see the parameter estimates are pretty similar, but when we look at the confidence intervals in the bottom plot, you can see that accounting for grouping variable the confidence intervals are a bit wider - which we'd expect if the data weren't truly independent. In the presence of a grouping factor like this, it's probably best to collect more groups. 
 
 ```{r, message = FALSE, warning = FALSE}
 lm.anova <- Tstar %>% lm(data = ., `T*` ~ genotype) 
