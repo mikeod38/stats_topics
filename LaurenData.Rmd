@@ -19,7 +19,7 @@ fig_height: 4
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  fig.path = "man/figures/README-",
+  fig.path = "man/figures/Lauren-",
   out.width = "100%"
 )
 library(tidyverse)

@@ -72,7 +72,7 @@ SSTRDrugs %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-initial plot Time-1.png" width="100%" />
+<img src="man/figures/Lauren-initial plot Time-1.png" width="100%" />
 
 Looks like the L\_2 group goes down and MK\_1 goes up. Now lets look at
 the experiments by dissociation.
@@ -87,7 +87,7 @@ SSTRDrugs %>%
   facet_wrap(~Dissociation)
 ```
 
-<img src="man/figures/README-by dissociation-1.png" width="100%" />
+<img src="man/figures/Lauren-by dissociation-1.png" width="100%" />
 
 Looks complicated, let’s look at the difference between `CTL` and each
 drug treatment at each time point by dissociation.
@@ -119,7 +119,7 @@ Summary_dissoc %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-continuous predict-1.png" width="100%" />
+<img src="man/figures/Lauren-continuous predict-1.png" width="100%" />
 This time shoing the effect by `Dissociation`, which has the same
 slopes, probably because the data are already normalized by
 `Dissociation`. The Standard error for the original data are in blue
@@ -145,7 +145,7 @@ Summary_slide %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-by slide-1.png" width="100%" /> This is
+<img src="man/figures/Lauren-by slide-1.png" width="100%" /> This is
 comforting because even when grouped by slide on which the cells were
 stained, we have the same overall trend. This likely is a bit closer to
 the effective n for the experiment, since cells on same `SLIDE` and
@@ -270,7 +270,7 @@ SSTRDrugs %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-bootstrap plot-1.png" width="100%" />
+<img src="man/figures/Lauren-bootstrap plot-1.png" width="100%" />
 
 The mixed-model captures more of the uncertainty, but still shows we can
 be confident of an upward effect of the MK\_1 treatment. Less convincing
