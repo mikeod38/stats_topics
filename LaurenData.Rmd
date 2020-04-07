@@ -6,6 +6,7 @@ output:
   github_document:
     toc: true
     toc_depth: 2
+always_allow_html: yes
 fig_width: 6 
 fig_height: 4
 ---
@@ -27,10 +28,12 @@ ggplot2::theme_set(theme_classic())
 ```
 
 
-<details><summary>Lauren's synapse labeling</summary>
-<p>
+
 
 # Analysis of Lauren's grouped data:
+
+<details><summary>Initial plots</summary>
+<p>
 
 ## Initial plots:
 
@@ -72,7 +75,10 @@ Looks complicated, let's look at the difference between `CTL` and each drug trea
 </p>
 </details>
 
-## Grouped data visualization:
+<details><summary>Time as a continuous parameter</summary>
+<p>
+
+## Time as a continuous parameter:
 
 ```{r, message = FALSE, warning = FALSE}
 Summary_dissoc <- SSTRDrugs %>%
@@ -106,7 +112,7 @@ Summary_slide %>%
 ```
 This is comforting because even when grouped by slide on which the cells were stained, we have the same overall trend. This likely is a bit closer to the effective n for the experiment, since cells on same `SLIDE` and `Dissocation` are not truly independent. The linear approximation does an okay job at capturing the time component. Let's compare the effects of modeling these grouping factors. 
 
-## Anova vs. Mixed-models:
+### Anova vs. Mixed-models:
 
 ```{r,message = FALSE, warning = FALSE}
 #simple ANOVA
@@ -121,48 +127,9 @@ lm.anova %>%
 
 lm.grouped %>%
   summary()
-
-lm.anova %>%
-  #emmeans::emmeans("Label", by = "Time") %>%
-  emmeans::emmeans(pairwise ~ Label)
-
-lm.grouped %>%
-  #emmeans::emmeans("Label", by = "Time") %>%
-  emmeans::emmeans(pairwise ~ Label)
 ```
 
-
-What if we consider all of the time points to be categorical? 
-
-```{r}
-############### for categorical 'Time' #######
-
-lm.anova.cat <- SSTRDrugs %>%
-  lm(data = ., formula = NormAvgTOT ~ factor(Time) * Label)
-
-anova.cat.emm <- lm.anova.cat %>%
-  emmeans::emmeans(pairwise ~ Label | factor(Time))
-
-anova.cat.emm$contrasts %>% rbind(adjust = "bonf")
-
-
-
-lm.grouped.cat <- SSTRDrugs %>%
-  lmerTest::lmer(data = ., formula = NormAvgTOT ~ factor(Time) * Label + (1 | Dissociation) + (1 | SLIDE))
-
-grouped.cat.emm <- lm.grouped.cat %>%
-  emmeans::emmeans(pairwise ~ Label | factor(Time))
-
-# these are approx p-values based
-grouped.cat.emm$contrasts %>% rbind(adjust = "bonf") %>% kableExtra::kable()
-
-```
-
-In reality the best approach to estimate uncertainty in mixed-effects models is using bootstapping.
-
-<details><summary>CODE</summary>
-<p>
-
+There appears to be a significant interaction effect between MK_1 and time, indicating that MK_1 is changing the slope of the time effect. In reality the best approach to estimate uncertainty in mixed-effects models is using bootstapping. 
 
 ```{r, bootstrapping}
 mySumm <- function(.) {
@@ -202,7 +169,52 @@ SSTRDrugs %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-The mixed-model captures more of the uncertainty, but still shows we can be confident of an upward effect of the MK_1 treatment. Less convincing is the downward effect of L_2, with the caveat that this is modeled as a linear effect, which might not capture the time-dependent effects in culture. 
+The mixed-model captures more of the uncertainty, but still shows we can be confident of an upward effect of the MK_1 treatment. Less convincing is the downward effect of L_2, with the caveat that this is modeled as a linear effect, which might not capture the time-dependent effects in culture.
+
+</p>
+</details>
+
+<details><summary>Time as a categorical parameter</summary>
+<p>
+
+## Time as a categorical parameter
+
+What if we consider all of the time points to be categorical? This is a situation more similar to Nathan's categorical grouped data. If the plan is to use a frequentist comparison, then in this case, it makes sense to consider what the H0 would be before the analysis. It seems that a major reason to use categorical `Time` would be if the H0 was none of the drug treatments at any time points differ from the control. In that case, we should have 2 comparisons to control for each time point, and also have an alpha adjustment for the fact that we are conducting tests at 3 time points.
+
+### Anova vs Mixed-effects model:
+
+```{r, categorical data, message = FALSE, warning = FALSE}
+############### for categorical 'Time' #######
+
+lm.anova.cat <- SSTRDrugs %>%
+  lm(data = ., formula = NormAvgTOT ~ factor(Time) * Label)
+
+anova.cat.emm <- lm.anova.cat %>% 
+  emmeans::emmeans("trt.vs.ctrl" ~ Label | factor(Time))
+
+### now just need to correct for the 3 time points, emmeans does it for you when you use rbind()
+anova.cat.emm$contrasts %>% 
+  rbind(adjust = "dunnett") %>%
+  kableExtra::kable(title = "Anova model") %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+
+
+lm.grouped.cat <- SSTRDrugs %>%
+  lmerTest::lmer(data = ., formula = NormAvgTOT ~ factor(Time) * Label + 
+                   ( 1 | Dissociation) + ( 1 | SLIDE))
+
+grouped.cat.emm <- lm.grouped.cat %>%
+  emmeans::emmeans("trt.vs.ctrl" ~ Label | factor(Time))
+
+# these are approx p-values based on the mixed effects model
+grouped.cat.emm$contrasts %>% 
+  rbind(adjust = "dunnett") %>% 
+  kableExtra::kable(title = "Mixed effects model") %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+
+```
+
+We can see that the point estimates for the data and the difference of means are fairly close, but the SEs are higher and the resulting p values are more conservative. If, just as we did for Nathan's data, we plotted bootstrap confidence intervals, we'd see the intervals are wider using the mixed-effects model. Using a full bayesian model to estimate the parameters is best, but maybe unnecessary in this case unless a better estimation of the effect size is really important. Similar to the analysis using time as a continuous predictor, there is evidence for an effect of MK_1, but weaker evidence for L_2. 
 
 </p>
 </details>

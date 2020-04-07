@@ -6,8 +6,10 @@ Mike O’Donnell
   - [Analysis of Lauren’s grouped
     data:](#analysis-of-laurens-grouped-data)
       - [Initial plots:](#initial-plots)
-      - [Grouped data visualization:](#grouped-data-visualization)
-      - [Anova vs. Mixed-models:](#anova-vs.-mixed-models)
+      - [Time as a continuous
+        parameter:](#time-as-a-continuous-parameter)
+      - [Time as a categorical
+        parameter](#time-as-a-categorical-parameter)
 
 <!-- output: -->
 
@@ -17,13 +19,13 @@ Mike O’Donnell
 
 <!--     df_print: paged -->
 
+# Analysis of Lauren’s grouped data:
+
 <details>
 
-<summary>Lauren’s synapse labeling</summary>
+<summary>Initial plots</summary>
 
 <p>
-
-# Analysis of Lauren’s grouped data:
 
 ## Initial plots:
 
@@ -94,7 +96,13 @@ drug treatment at each time point by dissociation.
 
 </details>
 
-## Grouped data visualization:
+<details>
+
+<summary>Time as a continuous parameter</summary>
+
+<p>
+
+## Time as a continuous parameter:
 
 ``` r
 Summary_dissoc <- SSTRDrugs %>%
@@ -144,7 +152,7 @@ the effective n for the experiment, since cells on same `SLIDE` and
 an okay job at capturing the time component. Let’s compare the effects
 of modeling these grouping factors.
 
-## Anova vs. Mixed-models:
+### Anova vs. Mixed-models:
 
 ``` r
 #simple ANOVA
@@ -217,48 +225,83 @@ lm.grouped %>%
 #> LabelMK_1   -0.602  0.578  0.452              
 #> Time:LblL_2  0.439 -0.467 -0.947 -0.409       
 #> Tim:LblMK_1  0.557 -0.595 -0.409 -0.934  0.404
-
-lm.anova %>%
-  #emmeans::emmeans("Label", by = "Time") %>%
-  emmeans::emmeans(pairwise ~ Label)
-#> $emmeans
-#>  Label emmean     SE  df lower.CL upper.CL
-#>  CTL    0.996 0.0208 560    0.955    1.037
-#>  L_2    0.843 0.0278 560    0.788    0.898
-#>  MK_1   1.236 0.0254 560    1.186    1.286
-#> 
-#> Confidence level used: 0.95 
-#> 
-#> $contrasts
-#>  contrast   estimate     SE  df t.ratio p.value
-#>  CTL - L_2     0.153 0.0348 560   4.412 <.0001 
-#>  CTL - MK_1   -0.240 0.0329 560  -7.299 <.0001 
-#>  L_2 - MK_1   -0.393 0.0377 560 -10.429 <.0001 
-#> 
-#> P value adjustment: tukey method for comparing a family of 3 estimates
-
-lm.grouped %>%
-  #emmeans::emmeans("Label", by = "Time") %>%
-  emmeans::emmeans(pairwise ~ Label)
-#> $emmeans
-#>  Label emmean     SE   df lower.CL upper.CL
-#>  CTL    0.985 0.0395 26.8    0.904    1.066
-#>  L_2    0.848 0.0488 44.6    0.750    0.946
-#>  MK_1   1.228 0.0483 40.0    1.130    1.325
-#> 
-#> Degrees-of-freedom method: satterthwaite 
-#> Confidence level used: 0.95 
-#> 
-#> $contrasts
-#>  contrast   estimate     SE   df t.ratio p.value
-#>  CTL - L_2     0.136 0.0531 93.2  2.568  0.0314 
-#>  CTL - MK_1   -0.243 0.0517 87.8 -4.703  <.0001 
-#>  L_2 - MK_1   -0.379 0.0601 99.3 -6.314  <.0001 
-#> 
-#> P value adjustment: tukey method for comparing a family of 3 estimates
 ```
 
-What if we consider all of the time points to be categorical?
+There appears to be a significant interaction effect between MK\_1 and
+time, indicating that MK\_1 is changing the slope of the time effect. In
+reality the best approach to estimate uncertainty in mixed-effects
+models is using bootstapping.
+
+``` r
+mySumm <- function(.) {
+  predict(., newdata=expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24), re.form=NA)
+}
+
+PI.boot1.time <- system.time(
+  boot1 <- lme4::bootMer(lm.grouped, mySumm, nsim=250, use.u=FALSE, type="parametric")
+)
+
+####Collapse bootstrap into median, 95% PI (from https://cran.r-project.org/web/packages/merTools/vignettes/Using_predictInterval.html)
+sumBoot <- function(merBoot) {
+  return(
+    data.frame(fit = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.5, na.rm=TRUE))),lwr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.025, na.rm=TRUE))),upr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.975, na.rm=TRUE)))
+    )
+  )
+}
+
+
+PI.boot1 <- sumBoot(boot1)
+Boot.intervals <- cbind(PI.boot1, expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24))
+```
+
+``` r
+#compare bootstrap CIs to lm (anova) CIs
+SSTRDrugs %>%
+  ggplot(aes(x = Time, y = NormAvgTOT)) +
+  geom_ribbon(data = Boot.intervals, 
+              aes(y = fit, ymin = lwr, ymax = upr, group = Label), 
+              alpha = 0.2, label = "bootstrap intervals") +
+  geom_smooth(method = "lm", aes(group = Label, colour = Label),fill = "blue", lty = 2) +
+  geom_line(data = Boot.intervals, aes(y = fit, group = Label, colour = Label)) +
+  # geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
+  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
+
+  scale_colour_viridis_d(end = .9)
+#> Warning: Ignoring unknown parameters: label
+#> Warning: Ignoring unknown aesthetics: y
+```
+
+<img src="man/figures/README-bootstrap plot-1.png" width="100%" />
+
+The mixed-model captures more of the uncertainty, but still shows we can
+be confident of an upward effect of the MK\_1 treatment. Less convincing
+is the downward effect of L\_2, with the caveat that this is modeled as
+a linear effect, which might not capture the time-dependent effects in
+culture.
+
+</p>
+
+</details>
+
+<details>
+
+<summary>Time as a categorical parameter</summary>
+
+<p>
+
+## Time as a categorical parameter
+
+What if we consider all of the time points to be categorical? This is a
+situation more similar to Nathan’s categorical grouped data. If the plan
+is to use a frequentist comparison, then in this case, it makes sense to
+consider what the H0 would be before the analysis. It seems that a major
+reason to use categorical `Time` would be if the H0 was none of the drug
+treatments at any time points differ from the control. In that case, we
+should have 2 comparisons to control for each time point, and also have
+an alpha adjustment for the fact that we are conducting tests at 3 time
+points.
+
+### Anova vs Mixed-effects model:
 
 ``` r
 ############### for categorical 'Time' #######
@@ -266,36 +309,17 @@ What if we consider all of the time points to be categorical?
 lm.anova.cat <- SSTRDrugs %>%
   lm(data = ., formula = NormAvgTOT ~ factor(Time) * Label)
 
-anova.cat.emm <- lm.anova.cat %>%
-  emmeans::emmeans(pairwise ~ Label | factor(Time))
+anova.cat.emm <- lm.anova.cat %>% 
+  emmeans::emmeans("trt.vs.ctrl" ~ Label | factor(Time))
 
-anova.cat.emm$contrasts %>% rbind(adjust = "bonf")
-#>  Time contrast   estimate     SE  df t.ratio p.value
-#>  6    CTL - L_2    0.0414 0.0882 557  0.470  1.0000 
-#>  6    CTL - MK_1  -0.0382 0.0743 557 -0.514  1.0000 
-#>  6    L_2 - MK_1  -0.0796 0.0934 557 -0.852  1.0000 
-#>  18   CTL - L_2    0.1116 0.0506 557  2.206  0.2498 
-#>  18   CTL - MK_1  -0.2432 0.0528 557 -4.606  <.0001 
-#>  18   L_2 - MK_1  -0.3548 0.0539 557 -6.581  <.0001 
-#>  24   CTL - L_2    0.2903 0.0608 557  4.778  <.0001 
-#>  24   CTL - MK_1  -0.3286 0.0511 557 -6.433  <.0001 
-#>  24   L_2 - MK_1  -0.6189 0.0664 557 -9.322  <.0001 
-#> 
-#> P value adjustment: bonferroni method for 9 tests
-
-
-
-lm.grouped.cat <- SSTRDrugs %>%
-  lmerTest::lmer(data = ., formula = NormAvgTOT ~ factor(Time) * Label + (1 | Dissociation) + (1 | SLIDE))
-
-grouped.cat.emm <- lm.grouped.cat %>%
-  emmeans::emmeans(pairwise ~ Label | factor(Time))
-
-# these are approx p-values based
-grouped.cat.emm$contrasts %>% rbind(adjust = "bonf") %>% kableExtra::kable()
+### now just need to correct for the 3 time points, emmeans does it for you when you use rbind()
+anova.cat.emm$contrasts %>% 
+  rbind(adjust = "dunnett") %>%
+  kableExtra::kable(title = "Anova model") %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-<table>
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 
 <thead>
 
@@ -359,13 +383,364 @@ p.value
 
 <td style="text-align:left;">
 
-CTL - L\_2
+L\_2 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-0.0523626
+\-0.0414178
+
+</td>
+
+<td style="text-align:right;">
+
+0.0881842
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+\-0.4696733
+
+</td>
+
+<td style="text-align:right;">
+
+0.9710337
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+6
+
+</td>
+
+<td style="text-align:left;">
+
+MK\_1 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+0.0381577
+
+</td>
+
+<td style="text-align:right;">
+
+0.0742709
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+0.5137630
+
+</td>
+
+<td style="text-align:right;">
+
+0.9625578
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+18
+
+</td>
+
+<td style="text-align:left;">
+
+L\_2 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+\-0.1116093
+
+</td>
+
+<td style="text-align:right;">
+
+0.0505834
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+\-2.2064406
+
+</td>
+
+<td style="text-align:right;">
+
+0.1281621
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+18
+
+</td>
+
+<td style="text-align:left;">
+
+MK\_1 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+0.2432095
+
+</td>
+
+<td style="text-align:right;">
+
+0.0528034
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+4.6059459
+
+</td>
+
+<td style="text-align:right;">
+
+0.0000302
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+24
+
+</td>
+
+<td style="text-align:left;">
+
+L\_2 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+\-0.2902703
+
+</td>
+
+<td style="text-align:right;">
+
+0.0607541
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+\-4.7777923
+
+</td>
+
+<td style="text-align:right;">
+
+0.0000135
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+24
+
+</td>
+
+<td style="text-align:left;">
+
+MK\_1 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+0.3286284
+
+</td>
+
+<td style="text-align:right;">
+
+0.0510866
+
+</td>
+
+<td style="text-align:right;">
+
+557
+
+</td>
+
+<td style="text-align:right;">
+
+6.4327746
+
+</td>
+
+<td style="text-align:right;">
+
+0.0000000
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+``` r
+
+
+lm.grouped.cat <- SSTRDrugs %>%
+  lmerTest::lmer(data = ., formula = NormAvgTOT ~ factor(Time) * Label + 
+                   ( 1 | Dissociation) + ( 1 | SLIDE))
+
+grouped.cat.emm <- lm.grouped.cat %>%
+  emmeans::emmeans("trt.vs.ctrl" ~ Label | factor(Time))
+
+# these are approx p-values based on the mixed effects model
+grouped.cat.emm$contrasts %>% 
+  rbind(adjust = "dunnett") %>% 
+  kableExtra::kable(title = "Mixed effects model") %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
+
+<thead>
+
+<tr>
+
+<th style="text-align:left;">
+
+Time
+
+</th>
+
+<th style="text-align:left;">
+
+contrast
+
+</th>
+
+<th style="text-align:right;">
+
+estimate
+
+</th>
+
+<th style="text-align:right;">
+
+SE
+
+</th>
+
+<th style="text-align:right;">
+
+df
+
+</th>
+
+<th style="text-align:right;">
+
+t.ratio
+
+</th>
+
+<th style="text-align:right;">
+
+p.value
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td style="text-align:left;">
+
+6
+
+</td>
+
+<td style="text-align:left;">
+
+L\_2 - CTL
+
+</td>
+
+<td style="text-align:right;">
+
+\-0.0523626
 
 </td>
 
@@ -383,13 +758,13 @@ CTL - L\_2
 
 <td style="text-align:right;">
 
-0.4103309
+\-0.4103309
 
 </td>
 
 <td style="text-align:right;">
 
-1.0000000
+0.9803044
 
 </td>
 
@@ -405,13 +780,13 @@ CTL - L\_2
 
 <td style="text-align:left;">
 
-CTL - MK\_1
+MK\_1 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-\-0.0608716
+0.0608716
 
 </td>
 
@@ -429,59 +804,13 @@ CTL - MK\_1
 
 <td style="text-align:right;">
 
-\-0.5446298
+0.5446298
 
 </td>
 
 <td style="text-align:right;">
 
-1.0000000
-
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:left;">
-
-6
-
-</td>
-
-<td style="text-align:left;">
-
-L\_2 - MK\_1
-
-</td>
-
-<td style="text-align:right;">
-
-\-0.1132341
-
-</td>
-
-<td style="text-align:right;">
-
-0.1230467
-
-</td>
-
-<td style="text-align:right;">
-
-230.61436
-
-</td>
-
-<td style="text-align:right;">
-
-\-0.9202532
-
-</td>
-
-<td style="text-align:right;">
-
-1.0000000
+0.9556562
 
 </td>
 
@@ -497,13 +826,13 @@ L\_2 - MK\_1
 
 <td style="text-align:left;">
 
-CTL - L\_2
+L\_2 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-0.0980911
+\-0.0980911
 
 </td>
 
@@ -521,13 +850,13 @@ CTL - L\_2
 
 <td style="text-align:right;">
 
-1.2994400
+\-1.2994400
 
 </td>
 
 <td style="text-align:right;">
 
-1.0000000
+0.5934680
 
 </td>
 
@@ -543,13 +872,13 @@ CTL - L\_2
 
 <td style="text-align:left;">
 
-CTL - MK\_1
+MK\_1 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-\-0.2299994
+0.2299994
 
 </td>
 
@@ -567,59 +896,13 @@ CTL - MK\_1
 
 <td style="text-align:right;">
 
-\-2.6710434
+2.6710434
 
 </td>
 
 <td style="text-align:right;">
 
-0.0823965
-
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:left;">
-
-18
-
-</td>
-
-<td style="text-align:left;">
-
-L\_2 - MK\_1
-
-</td>
-
-<td style="text-align:right;">
-
-\-0.3280904
-
-</td>
-
-<td style="text-align:right;">
-
-0.0876082
-
-</td>
-
-<td style="text-align:right;">
-
-82.16885
-
-</td>
-
-<td style="text-align:right;">
-
-\-3.7449755
-
-</td>
-
-<td style="text-align:right;">
-
-0.0030030
+0.0459628
 
 </td>
 
@@ -635,13 +918,13 @@ L\_2 - MK\_1
 
 <td style="text-align:left;">
 
-CTL - L\_2
+L\_2 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-0.2506334
+\-0.2506334
 
 </td>
 
@@ -659,13 +942,13 @@ CTL - L\_2
 
 <td style="text-align:right;">
 
-2.5617819
+\-2.5617819
 
 </td>
 
 <td style="text-align:right;">
 
-0.1093161
+0.0598584
 
 </td>
 
@@ -681,13 +964,13 @@ CTL - L\_2
 
 <td style="text-align:left;">
 
-CTL - MK\_1
+MK\_1 - CTL
 
 </td>
 
 <td style="text-align:right;">
 
-\-0.3399407
+0.3399407
 
 </td>
 
@@ -705,59 +988,13 @@ CTL - MK\_1
 
 <td style="text-align:right;">
 
-\-4.1996988
+4.1996988
 
 </td>
 
 <td style="text-align:right;">
 
-0.0005789
-
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:left;">
-
-24
-
-</td>
-
-<td style="text-align:left;">
-
-L\_2 - MK\_1
-
-</td>
-
-<td style="text-align:right;">
-
-\-0.5905741
-
-</td>
-
-<td style="text-align:right;">
-
-0.1125543
-
-</td>
-
-<td style="text-align:right;">
-
-87.62977
-
-</td>
-
-<td style="text-align:right;">
-
-\-5.2470156
-
-</td>
-
-<td style="text-align:right;">
-
-0.0000096
+0.0003721
 
 </td>
 
@@ -767,61 +1004,15 @@ L\_2 - MK\_1
 
 </table>
 
-In reality the best approach to estimate uncertainty in mixed-effects
-models is using bootstapping.
-
-<details>
-
-<summary>CODE</summary>
-
-<p>
-
-``` r
-mySumm <- function(.) {
-  predict(., newdata=expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24), re.form=NA)
-}
-
-PI.boot1.time <- system.time(
-  boot1 <- lme4::bootMer(lm.grouped, mySumm, nsim=250, use.u=FALSE, type="parametric")
-)
-
-####Collapse bootstrap into median, 95% PI (from https://cran.r-project.org/web/packages/merTools/vignettes/Using_predictInterval.html)
-sumBoot <- function(merBoot) {
-  return(
-    data.frame(fit = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.5, na.rm=TRUE))),lwr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.025, na.rm=TRUE))),upr = apply(merBoot$t, 2, function(x) as.numeric(quantile(x, probs=.975, na.rm=TRUE)))
-    )
-  )
-}
-
-
-PI.boot1 <- sumBoot(boot1)
-Boot.intervals <- cbind(PI.boot1, expand_grid(Label = c("CTL", "L_2", "MK_1"), Time = 6:24))
-```
-
-``` r
-#compare bootstrap CIs to lm (anova) CIs
-SSTRDrugs %>%
-  ggplot(aes(x = Time, y = NormAvgTOT)) +
-  geom_ribbon(data = Boot.intervals, 
-              aes(y = fit, ymin = lwr, ymax = upr, group = Label), 
-              alpha = 0.2, label = "bootstrap intervals") +
-  geom_smooth(method = "lm", aes(group = Label, colour = Label),fill = "blue", lty = 2) +
-  geom_line(data = Boot.intervals, aes(y = fit, group = Label, colour = Label)) +
-  # geom_point(aes(group = Label, colour = Label), position = position_dodge(width = 2)) +
-  geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
-
-  scale_colour_viridis_d(end = .9)
-#> Warning: Ignoring unknown parameters: label
-#> Warning: Ignoring unknown aesthetics: y
-```
-
-<img src="man/figures/README-bootstrap plot-1.png" width="100%" />
-
-The mixed-model captures more of the uncertainty, but still shows we can
-be confident of an upward effect of the MK\_1 treatment. Less convincing
-is the downward effect of L\_2, with the caveat that this is modeled as
-a linear effect, which might not capture the time-dependent effects in
-culture.
+We can see that the point estimates for the data and the difference of
+means are fairly close, but the SEs are higher and the resulting p
+values are more conservative. If, just as we did for Nathan’s data, we
+plotted bootstrap confidence intervals, we’d see the intervals are wider
+using the mixed-effects model. Using a full bayesian model to estimate
+the parameters is best, but maybe unnecessary in this case unless a
+better estimation of the effect size is really important. Similar to the
+analysis using time as a continuous predictor, there is evidence for an
+effect of MK\_1, but weaker evidence for L\_2.
 
 </p>
 
