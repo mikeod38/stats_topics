@@ -34,7 +34,7 @@ ggplot2::theme_set(theme_classic())
 
 ## First plotting and colour T* values according to group. 
 In this case the group is the slide/video in which the imaging data were acquired
-```{r, message = FALSE, warning = FALSE}
+```{r Tstar grouped, message = FALSE, warning = FALSE}
 
 #read csv file in:
 Tstar <- readr::read_csv("data/WTvsNHR52_Tstar.csv") %>% mutate(group = interaction(genotype, video)) 
@@ -44,7 +44,7 @@ Tstar %>%
 
 When we analyze the effect of the grouping variable, there is some evidence that the recording session might have an effect on the T* value, see the `WT.Video 2 - WT.Video1` comparison.
 
-```{r, message = FALSE, warning = FALSE}
+```{r anova Tstar stats, message = FALSE, warning = FALSE}
 Tstar %>% lm(data = ., `T*` ~ group) %>% 
   emmeans::emmeans("group") %>% 
   emmeans::contrast(method = "pairwise")
@@ -57,7 +57,7 @@ In the mixed-effects model, we add a term for grouping variable, in this case th
 
 You can see the parameter estimates are pretty similar, but when we look at the confidence intervals in the bottom plot, you can see that accounting for grouping variable the confidence intervals are a bit wider - which we'd expect if the data weren't truly independent. In the presence of a grouping factor like this, it's probably best to collect more groups. 
 
-```{r, message = FALSE, warning = FALSE}
+```{r anova v mixed Tstar, message = FALSE, warning = FALSE}
 lm.anova <- Tstar %>% lm(data = ., `T*` ~ genotype) 
 lm.anova %>% emmeans::emmeans("genotype") %>% 
   emmeans::contrast(method = "pairwise")

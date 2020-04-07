@@ -72,7 +72,7 @@ SSTRDrugs %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-unnamed-chunk-1-1.png" width="100%" />
+<img src="man/figures/README-initial plot Time-1.png" width="100%" />
 
 Looks like the L\_2 group goes down and MK\_1 goes up. Now lets look at
 the experiments by dissociation.
@@ -87,7 +87,7 @@ SSTRDrugs %>%
   facet_wrap(~Dissociation)
 ```
 
-<img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
+<img src="man/figures/README-by dissociation-1.png" width="100%" />
 
 Looks complicated, let’s look at the difference between `CTL` and each
 drug treatment at each time point by dissociation.
@@ -119,15 +119,16 @@ Summary_dissoc %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" /> This
-time shoing the effect by `Dissociation`, which has the same slopes,
-probably because the data are already normalized by `Dissociation`. The
-Standard error for the original data are in blue with solid lines, the
-new based on summaries by Dissociation are in grey with dashed lines.
-Standard errors are much wider because in this highly conservative way
-to look at the data, the n is much smaller. The real variability is
-probably somewhere in between these. So let’s look by `slide` on which
-the cells were stained, which is another level of grouping.
+<img src="man/figures/README-continuous predict-1.png" width="100%" />
+This time shoing the effect by `Dissociation`, which has the same
+slopes, probably because the data are already normalized by
+`Dissociation`. The Standard error for the original data are in blue
+with solid lines, the new based on summaries by Dissociation are in grey
+with dashed lines. Standard errors are much wider because in this highly
+conservative way to look at the data, the n is much smaller. The real
+variability is probably somewhere in between these. So let’s look by
+`slide` on which the cells were stained, which is another level of
+grouping.
 
 ``` r
 Summary_slide <- SSTRDrugs %>%
@@ -144,8 +145,8 @@ Summary_slide %>%
   scale_colour_viridis_d(end = .9)
 ```
 
-<img src="man/figures/README-unnamed-chunk-4-1.png" width="100%" /> This
-is comforting because even when grouped by slide on which the cells were
+<img src="man/figures/README-by slide-1.png" width="100%" /> This is
+comforting because even when grouped by slide on which the cells were
 stained, we have the same overall trend. This likely is a bit closer to
 the effective n for the experiment, since cells on same `SLIDE` and
 `Dissocation` are not truly independent. The linear approximation does
@@ -267,8 +268,6 @@ SSTRDrugs %>%
   geom_boxplot(aes(group = interaction(Time,Label), colour = Label),  width = 2) +
 
   scale_colour_viridis_d(end = .9)
-#> Warning: Ignoring unknown parameters: label
-#> Warning: Ignoring unknown aesthetics: y
 ```
 
 <img src="man/figures/README-bootstrap plot-1.png" width="100%" />

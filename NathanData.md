@@ -39,7 +39,7 @@ Tstar %>%
   ggplot(aes(x = genotype, y = `T*`)) + geom_point(aes(colour = group))
 ```
 
-<img src="man/figures/README-unnamed-chunk-1-1.png" width="100%" />
+<img src="man/figures/README-Tstar grouped-1.png" width="100%" />
 
 When we analyze the effect of the grouping variable, there is some
 evidence that the recording session might have an effect on the T\*
@@ -117,7 +117,7 @@ Tstar %>% mutate(data_type = "raw") %>%
   labs(title = "linear vs mixed effects confidence intervals")
 ```
 
-<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
+<img src="man/figures/README-anova v mixed Tstar-1.png" width="100%" />
 
 </p>
 
