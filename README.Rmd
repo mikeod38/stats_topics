@@ -15,3 +15,5 @@ This repository contains topics we'll cover centered on real-world applied stati
 ## [Data independence - part1](NathanData.md)
 
 ## [Data independence - part2](LaurenData.md)
+
+## [Data independence - part3](Simulation.md)

@@ -7,17 +7,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/Simulation-",
-  out.width = "100%"
-)
-library(tidyverse)
-library(magrittr)
-ggplot2::theme_set(theme_classic())
-```
+
 
 # Basic comparison - 2 groups with independent data:
 
@@ -25,7 +15,8 @@ In this example, we'll simulate the effect of ignoring group-wise correlation wh
 
 First, using data in which the observations within groups have no correlation 
 
-```{r independent data, message = FALSE, warning = FALSE}
+
+```r
 set.seed(4372)
 nObs <- 15
 ngroups <- 3
@@ -44,6 +35,11 @@ Data_noRE <- simple_data()
 
 ggplot(Data_noRE, aes(x = condition, y = response)) +
   geom_point(aes(colour = group))
+```
+
+<img src="man/figures/Simulation-independent data-1.png" width="100%" />
+
+```r
 
 simData_noRE <- purrr::rerun(1000,
   simple_data()) %>%
@@ -79,13 +75,29 @@ simData_noRE %>%
   kableExtra::kable()
 ```
 
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:right;"> typeI.lm </th>
+   <th style="text-align:right;"> typeI.mm </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:right;"> 0.047 </td>
+   <td style="text-align:right;"> 0.025 </td>
+  </tr>
+</tbody>
+</table>
+
 So under conditions in which there is no correlation between groups, ie the groups are just imaginary/abritrary grouping, both anova and mixed models have false positive rate of ~0.05 or lower. 
 
 ### What if groups are correlated?
 
 In this case, we'll add an rnadom error term, which is a value drawn from a normal distribution to represent the group effect. In each case, the values within a group are random, but each value within a group is multiplied by the random factor (centered at 1). You'll see it's not so obvious to pick out correlated data when looking at them, but see at the bottom what the effect of ignoring this is on typeI error rate. 
 
-```{r correlated data, message = FALSE, warning = FALSE}
+
+```r
 nObs <- 15
 ngroups <- 3 # number of groups per condition:
 
@@ -102,6 +114,11 @@ Data_RE <- correlated_data()
 
 ggplot(Data_RE, aes(x = condition, y = response)) +
   geom_point(aes(colour = group))
+```
+
+<img src="man/figures/Simulation-correlated data-1.png" width="100%" />
+
+```r
 
 # get p-value from lm for these:
 
@@ -138,13 +155,27 @@ simData_RE %>%
   summarize(typeI.lm = sum(p.val.lm < 0.05)/nrow(.), 
             typeI.mm = sum(p.val.mm < 0.05)/nrow(.)) %>%
   kableExtra::kable()
-
-
 ```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:right;"> typeI.lm </th>
+   <th style="text-align:right;"> typeI.mm </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:right;"> 0.138 </td>
+   <td style="text-align:right;"> 0.042 </td>
+  </tr>
+</tbody>
+</table>
 
 Let's look at what happened in the datasets in which there were false positives
 
-```{r}
+
+```r
 
 effects.lm <- simData_RE %>% filter(p.val.lm < 0.05) %>%
   mutate(effect = map(linmod, broom::tidy)) %>% 
@@ -164,6 +195,8 @@ ggplot(aes(x = type, y = effect), data = effects.lm) +
   ggbeeswarm::geom_quasirandom(colour = "red", width = 0.2) +
   ggbeeswarm::geom_quasirandom(data = effects.mm, colour = "blue", width = 0.2)
 ```
+
+<img src="man/figures/Simulation-unnamed-chunk-1-1.png" width="100%" />
 
 
 In this case, the ANOVA on correlated data yield much higher than expected false positives - so take-home message is don't ignore data independence. 
